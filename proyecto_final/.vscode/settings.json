@@ -14,5 +14,12 @@
     "idf.portWin": "COM8",
     "idf.pythonBinPathWin": "C:\\Users\\cesar\\.espressif\\python_env\\idf4.4_py3.8_env\\Scripts\\python.exe",
     "idf.toolsPathWin": "C:\\Users\\cesar\\.espressif",
-    "idf.flashType": "UART"
+    "idf.flashType": "UART",
+    "files.associations": {
+        "esp_task_wdt.h": "c",
+        "task.h": "c",
+        "freertos.h": "c",
+        "i2c.h": "c",
+        "stdio.h": "c"
+    }
 }
