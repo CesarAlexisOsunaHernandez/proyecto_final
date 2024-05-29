@@ -13,29 +13,6 @@
 #include "mpu_6050.h"
 #include "bme280.h"
 
-// #include <stdio.h>
-// #include <stdint.h>
-// #include <stddef.h>
-// #include <string.h>
-// #include "esp_wifi.h"
-// #include "esp_system.h"
-// #include "nvs_flash.h"
-// #include "esp_event.h"
-// #include "esp_netif.h"
-
-// #include "freertos/FreeRTOS.h"
-// #include "freertos/task.h"
-// #include "freertos/semphr.h"
-// #include "freertos/queue.h"
-
-// #include "lwip/sockets.h"
-// #include "lwip/dns.h"
-// #include "lwip/netdb.h"
-
-// #include "esp_log.h"
-// #include "mqtt_client.h"
-// #include "driver/adc.h"
-
 #define I2C_MASTER_SCL_IO           22      /*!< GPIO number used for I2C master clock */
 #define I2C_MASTER_SDA_IO           21      /*!< GPIO number used for I2C master data  */
 #define I2C_MASTER_NUM              0                          /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
@@ -47,6 +24,7 @@
 static const char *TAG = "MQTT_EXAMPLE";
 esp_mqtt_client_handle_t client;
 char command[40] = "";
+uint8_t distance = 0;
 
 /**
  * @brief i2c master initialization
@@ -69,6 +47,72 @@ static esp_err_t i2c_master_init(void)
     return i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
 }
 
+void commandManager(char cmd[]){
+    char method[15];
+    char payload[6];
+    uint8_t goal = 0;
+    uint8_t i = 0;
+    uint8_t j = 0;
+    while (cmd[i] != '\0'){
+        if (goal == 3){
+            method[j] = cmd[i];
+            j++;
+        }else if (goal == 4){
+            method[j - 1] = '\0';
+            break;
+        }
+        if (cmd[i] == '"')
+            goal++;
+        
+        i++;
+    }
+    goal = 0;
+    j = 0;
+
+    printf("method: %s\n", method);
+
+    if (!strcmp("setState", method) || !strcmp("car1", method) || !strcmp("lightState", method)){
+        while (cmd[i] != '}'){
+            if (goal){
+                payload[j] = cmd[i];
+                j++;
+            }
+            if (cmd[i] == ':')
+                goal++;
+            
+            i++;
+        }
+        payload[j] = '\0';
+        printf("payload: %s\n", payload);
+
+        if (!strcmp("setState", method)){
+            distance =  atoi(payload);
+            printf("distance: %d\n", distance);
+        }else if (!strcmp("car1", method)){
+
+        }else if (!strcmp("lightState", method)){
+            if (!strcmp("false", payload)){
+                gpio_set_level(23, 0);
+                gpio_set_level(27, 0);
+            }else{
+                gpio_set_level(23, 1);
+                gpio_set_level(27, 1);
+            }
+        }
+        
+    }else if (!strcmp("foward", method)){
+
+    }else if (!strcmp("left", method)){
+
+    }else if (!strcmp("right", method)){
+
+    }else if (!strcmp("back", method)){
+
+    }
+    
+    
+}
+
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
@@ -81,7 +125,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         //msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1, 0);
         //ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
 
-        esp_mqtt_client_subscribe(client, "v1/devices/me/rpc/request/+", 0);
+        esp_mqtt_client_subscribe(client, "v1/devices/me/rpc/request/+", 1);
         gpio_set_level(2, 1);
         //ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
@@ -111,14 +155,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
         printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
         printf("DATA=%.*s\r\n", event->data_len, event->data);
+        commandManager(event->data);
         //strncpy(command, event->data, event->data_len);
         //printf("command(naka): %s\n", command);
-        command[0] = event->data[30];
-        command[1] = event->data[31];
-        command[2] = event->data[32];
-        command[3] = event->data[33];
-        command[4] = event->data[34];
-        printf("command(naka): %s\n", command);
+        // command[0] = event->data[30];
+        // command[1] = event->data[31];
+        // command[2] = event->data[32];
+        // command[3] = event->data[33];
+        // command[4] = event->data[34];
+        // printf("command(naka): %s\n", command);
         break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
@@ -159,14 +204,14 @@ static void mqtt_app_start(void)
 void app_main(void)
 {
     nvs_flash_init();
-
-    ESP_ERROR_CHECK(esp_netif_init());
-
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_init();
+    esp_event_loop_create_default();
     esp_netif_create_default_wifi_sta();
+    printf("1\n");
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    printf("2\n");
 
     wifi_config_t wifi_config = {
         .sta = {
@@ -175,31 +220,54 @@ void app_main(void)
         },
     };
     
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
-    ESP_ERROR_CHECK(esp_wifi_start());
-    ESP_ERROR_CHECK(esp_wifi_connect());
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    printf("3\n");
+    esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+    printf("4\n");
+    esp_wifi_start();
+    printf("5\n");
+    esp_wifi_connect();
+    printf("6\n");
 
     mqtt_app_start();
-
+    printf("7\n");
     
     esp_task_wdt_init(3600,true);
     uint8_t i = 0;
+    uint16_t j = 0;
+    uint8_t danger = 0;
+    uint8_t buzz = 0;
+    uint8_t fre = 0;
 
     //** SENORES INFRAROJOS **
     gpio_reset_pin(26);                                  //sensor infrarojo 1
     gpio_set_direction(26, GPIO_MODE_INPUT);
 
-    // gpio_reset_pin(25);                                  //sensor infrarojo 2
-    // gpio_set_direction(25, GPIO_MODE_INPUT);
+    gpio_reset_pin(25);                                  //sensor infrarojo 2
+    gpio_set_direction(25, GPIO_MODE_INPUT);
 
-    // gpio_reset_pin(33);                                  //sensor infrarojo 3
-    // gpio_set_direction(33, GPIO_MODE_INPUT);
+    gpio_reset_pin(33);                                  //sensor infrarojo 3
+    gpio_set_direction(33, GPIO_MODE_INPUT);
 
     gpio_reset_pin(2);
     gpio_set_direction(2, GPIO_MODE_OUTPUT);
 
+    gpio_reset_pin(5);
+    gpio_set_direction(5, GPIO_MODE_OUTPUT);
+
+    gpio_reset_pin(23);
+    gpio_set_direction(23, GPIO_MODE_OUTPUT);
+
+    gpio_reset_pin(27);
+    gpio_set_direction(27, GPIO_MODE_OUTPUT);
+
     initWheels();
+    i2c_master_init();
+    initMpu6050();
+    set_calib_vars();
+
+    /* Resetea el sensor*/
+    ESP_ERROR_CHECK(device_register_write_byte(RESET, 0xB6));
 
     while (1){
         
@@ -216,10 +284,59 @@ void app_main(void)
         //     wheelsStop();
         //     i = 0;
         // }
-        wheelsGoFoward();
+        if (i == 100){
+            i = 0;
+            ///initBme280();
+            if (!detect_danger_angles()){
+                danger = 0;
+                if(gpio_get_level(33) && gpio_get_level(26) && gpio_get_level(25))
+                    wheelsGoFoward();
+                else{
+                    if(!gpio_get_level(26) && gpio_get_level(25))
+                        wheelsTurnCounterClockwise();
+                    else if (gpio_get_level(26) && !gpio_get_level(25))
+                        wheelsTurnClockwise();
+                    else
+                        wheelsStop();
+                }
+            }else{
+                wheelsStop();
+                danger = 1;
+                    //gpio_set_level(5, buzz);
+                //buzz = !buzz;
+            }
+
+            //printBME280();
+            //print_accelerometer();
+        }
+        
+        if (danger){
+            if (!(i % 3)){
+                if (fre == 10){
+                    fre = 0;
+                    gpio_set_level(5, buzz);
+                    buzz = !buzz;
+                }
+                fre++;
+            }else{
+                fre = 0;
+                gpio_set_level(5, 0);
+            }
+        }else{
+            gpio_set_level(5, 0);
+        }
+
+        
+        //print_gyroscope();
         // i++;
         // printf("gpio_get_level(26): %d\n", gpio_get_level(26));
-        vTaskDelay(1000 / portTICK_PERIOD_MS);                                                                                                                                                                                                              
+        delay10Us();
+        j++;
+        if(j == 2000){
+            i++;
+            j = 0;
+        }
+        //vTaskDelay(2000 / portTICK_PERIOD_MS);                                                                                                                                                                                                              
     }
     
 }

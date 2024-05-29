@@ -24,10 +24,10 @@ void initWheels(){
  * @brief El carro se mueve hacia adelante.
  */
 void wheelsGoFoward(){
-    gpio_set_level(12, 0);
-    gpio_set_level(13, 1);
-    gpio_set_level(4, 0);
-    gpio_set_level(15, 1);
+    gpio_set_level(12, 1);
+    gpio_set_level(13, 0);
+    gpio_set_level(4, 1);
+    gpio_set_level(15, 0);
     printf("** FOWARD **\n");
 }
 
@@ -35,10 +35,10 @@ void wheelsGoFoward(){
  * @brief El carro se mueve hacia atras.
  */
 void wheelsGoBackward(){
-    gpio_set_level(12, 1);
-    gpio_set_level(13, 0);
-    gpio_set_level(4, 1);
-    gpio_set_level(15, 0);
+    gpio_set_level(12, 0);
+    gpio_set_level(13, 1);
+    gpio_set_level(4, 0);
+    gpio_set_level(15, 1);
     printf("** BACKWARD **\n");
 }
 

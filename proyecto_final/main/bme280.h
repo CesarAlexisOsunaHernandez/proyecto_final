@@ -50,5 +50,14 @@ int32_t t_fine;
 
 esp_err_t device_register_read(uint8_t reg_addr, uint8_t *data);
 esp_err_t device_register_write_byte(uint8_t reg_addr, uint8_t data);
+void initBme280();
+void set_calib_vars();
+double get_temp_value(int32_t raw);
+double get_press_value(int32_t adc_P);
+double get_hum_value(int32_t adc_H);
+double read_humidity();
+double read_temperature();
+double read_pressure();
+void printBME280();
 
 #endif

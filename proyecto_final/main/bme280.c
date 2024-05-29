@@ -1,5 +1,7 @@
 #include "bme280.h"
 
+static const char *BME = "BME280";
+
 /**
  * @brief Read a sequence of bytes from a MPU6050 sensor registers
  */
@@ -23,84 +25,17 @@ esp_err_t device_register_write_byte(uint8_t reg_addr, uint8_t data)
     return i2c_master_write_to_device(0, BME280_ADDR, write_buf, sizeof(write_buf), 1000 / portTICK_RATE_MS);
 }
 
-/*!
- * @brief This internal API is used to compensate the raw temperature data and
- * return the compensated temperature data in double data type.
- */
-double get_temp_value(int32_t raw){
-    double var1;
-    double var2;
-    double temperature;
-    double temperature_min = -40;
-    double temperature_max = 85;
-
-    var1 = (((double)raw) / 16384.0 - ((double)dig_T1) / 1024.0);
-    var1 = var1 * ((double)dig_T2);
-    var2 = (((double)raw) / 131072.0 - ((double)dig_T1) / 8192.0);
-    var2 = (var2 * var2) * ((double)dig_T3);
-    t_fine = (int32_t)(var1 + var2);
-    temperature = (var1 + var2) / 5120.0;
-
-    if (temperature < temperature_min)
-    {
-        temperature = temperature_min;
-    }
-    else if (temperature > temperature_max)
-    {
-        temperature = temperature_max;
-    }
-
-    return temperature;
-}
-
-double get_press_value(int32_t adc_P)
-{
-    int64_t var1, var2, p;
-    var1 = ((int64_t)t_fine) - 128000; var2 = var1 * var1 * (int64_t)dig_P6;
-    var2 = var2 + ((var1*(int64_t)dig_P5)<<17); var2 = var2 + (((int64_t)dig_P4)<<35);
-    var1 = ((var1 * var1 * (int64_t)dig_P3)>>8) + ((var1 * (int64_t)dig_P2)<<12); var1 = (((((int64_t)1)<<47)+var1))*((int64_t)dig_P1)>>33;
-    if (var1 == 0)
-    {
-    return 0; // avoid exception caused by division by zero
-    }
-    p = 1048576-adc_P;
-    p = (((p<<31)-var2)*3125)/var1;
-    var1 = (((int64_t)dig_P9) * (p>>13) * (p>>13)) >> 25;
-    var2 = (((int64_t)dig_P8) * p) >> 19;
-    p = ((p + var1 + var2) >> 8) + (((int64_t)dig_P7)<<4); return ((double)p) / 25600;
-}
-
-double get_hum_value(int32_t adc_H)
-{
-	double humidity;
-    double humidity_min = 0.0;
-    double humidity_max = 100.0;
-    double var1;
-    double var2;
-    double var3;
-    double var4;
-    double var5;
-    double var6;
-
-    var1 = ((double)t_fine) - 76800.0;
-    var2 = (((double)dig_H4) * 64.0 + (((double)dig_H5) / 16384.0) * var1);
-    var3 = adc_H - var2;
-    var4 = ((double)dig_H2) / 65536.0;
-    var5 = (1.0 + (((double)dig_H3) / 67108864.0) * var1);
-    var6 = 1.0 + (((double)dig_H6) / 67108864.0) * var1 * var5;
-    var6 = var3 * var4 * (var5 * var6);
-    humidity = var6 * (1.0 - ((double)dig_H1) * var6 / 524288.0);
-
-    if (humidity > humidity_max)
-    {
-        humidity = humidity_max;
-    }
-    else if (humidity < humidity_min)
-    {
-        humidity = humidity_min;
-    }
-
-    return humidity;
+void initBme280(){
+    /*Configura para la medicion de la humedad con oversampling x 16*/
+    ESP_ERROR_CHECK(device_register_write_byte(CTRL_HUM, 0x05));
+    ESP_LOGI(BME, "Humidity initialized successfully");
+    /*Configura para la medicion de la presion y temperatura con oversampling x 16, aparte activa el modo forzado*/
+    ESP_ERROR_CHECK(device_register_write_byte(CTRL_MEAS, 0xB5));
+    ESP_LOGI(BME, "Pressure and temperature initialized successfully");
+    /*Configura el filtro con un coeficiente de 16*/
+    ESP_ERROR_CHECK(device_register_write_byte(CONFIG, 0x10));
+    ESP_LOGI(BME, "Filter initialized successfully");
+    ESP_LOGI(BME, "BME280 initialized successfully");
 }
 
 /*
@@ -197,6 +132,86 @@ void set_calib_vars(){
     dig_H6 = data[0];
 }
 
+/*!
+ * @brief This internal API is used to compensate the raw temperature data and
+ * return the compensated temperature data in double data type.
+ */
+double get_temp_value(int32_t raw){
+    double var1;
+    double var2;
+    double temperature;
+    double temperature_min = -40;
+    double temperature_max = 85;
+
+    var1 = (((double)raw) / 16384.0 - ((double)dig_T1) / 1024.0);
+    var1 = var1 * ((double)dig_T2);
+    var2 = (((double)raw) / 131072.0 - ((double)dig_T1) / 8192.0);
+    var2 = (var2 * var2) * ((double)dig_T3);
+    t_fine = (int32_t)(var1 + var2);
+    temperature = (var1 + var2) / 5120.0;
+
+    if (temperature < temperature_min)
+    {
+        temperature = temperature_min;
+    }
+    else if (temperature > temperature_max)
+    {
+        temperature = temperature_max;
+    }
+
+    return temperature;
+}
+
+double get_press_value(int32_t adc_P)
+{
+    int64_t var1, var2, p;
+    var1 = ((int64_t)t_fine) - 128000; var2 = var1 * var1 * (int64_t)dig_P6;
+    var2 = var2 + ((var1*(int64_t)dig_P5)<<17); var2 = var2 + (((int64_t)dig_P4)<<35);
+    var1 = ((var1 * var1 * (int64_t)dig_P3)>>8) + ((var1 * (int64_t)dig_P2)<<12); var1 = (((((int64_t)1)<<47)+var1))*((int64_t)dig_P1)>>33;
+    if (var1 == 0)
+    {
+    return 0; // avoid exception caused by division by zero
+    }
+    p = 1048576-adc_P;
+    p = (((p<<31)-var2)*3125)/var1;
+    var1 = (((int64_t)dig_P9) * (p>>13) * (p>>13)) >> 25;
+    var2 = (((int64_t)dig_P8) * p) >> 19;
+    p = ((p + var1 + var2) >> 8) + (((int64_t)dig_P7)<<4); return ((double)p) / 25600;
+}
+
+double get_hum_value(int32_t adc_H)
+{
+	double humidity;
+    double humidity_min = 0.0;
+    double humidity_max = 100.0;
+    double var1;
+    double var2;
+    double var3;
+    double var4;
+    double var5;
+    double var6;
+
+    var1 = ((double)t_fine) - 76800.0;
+    var2 = (((double)dig_H4) * 64.0 + (((double)dig_H5) / 16384.0) * var1);
+    var3 = adc_H - var2;
+    var4 = ((double)dig_H2) / 65536.0;
+    var5 = (1.0 + (((double)dig_H3) / 67108864.0) * var1);
+    var6 = 1.0 + (((double)dig_H6) / 67108864.0) * var1 * var5;
+    var6 = var3 * var4 * (var5 * var6);
+    humidity = var6 * (1.0 - ((double)dig_H1) * var6 / 524288.0);
+
+    if (humidity > humidity_max)
+    {
+        humidity = humidity_max;
+    }
+    else if (humidity < humidity_min)
+    {
+        humidity = humidity_min;
+    }
+
+    return humidity;
+}
+
 double read_humidity(){
     uint32_t hum;
     uint8_t data[2];
@@ -235,4 +250,8 @@ double read_pressure(){
     pres += data[0]>>4;
 
     return get_press_value(pres);
+}
+
+void printBME280(){
+    printf("\nHumidity: %0.2lf Temperature: %0.2lf Pressure: %0.2lf\n", read_humidity(), read_temperature(), read_pressure());
 }
