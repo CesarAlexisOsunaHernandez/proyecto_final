@@ -25,6 +25,8 @@ static const char *TAG = "MQTT_EXAMPLE";
 esp_mqtt_client_handle_t client;
 char command[40] = "";
 uint8_t distance = 0;
+uint8_t direction = 0;
+uint32_t movementTime = 0;
 
 /**
  * @brief i2c master initialization
@@ -85,29 +87,30 @@ void commandManager(char cmd[]){
         payload[j] = '\0';
         printf("payload: %s\n", payload);
 
-        if (!strcmp("setState", method)){
-            distance =  atoi(payload);
-            printf("distance: %d\n", distance);
-        }else if (!strcmp("car1", method)){
+        // if (!strcmp("setState", method)){
+        //     distance =  atoi(payload);
+        //     printf("distance: %d\n", distance);
+        // }else if (!strcmp("car1", method)){
 
-        }else if (!strcmp("lightState", method)){
+        // }else 
+        if (!strcmp("lightState", method)){
             if (!strcmp("false", payload)){
                 gpio_set_level(23, 0);
-                gpio_set_level(27, 0);
+                gpio_set_level(32, 0);
             }else{
                 gpio_set_level(23, 1);
-                gpio_set_level(27, 1);
+                gpio_set_level(32, 1);
             }
         }
         
-    }else if (!strcmp("foward", method)){
-
-    }else if (!strcmp("left", method)){
-
-    }else if (!strcmp("right", method)){
-
-    }else if (!strcmp("back", method)){
-
+    // }else if (!strcmp("foward", method)){
+    //     direction = 1;
+    // }else if (!strcmp("left", method)){
+    //     direction = 3;
+    // }else if (!strcmp("right", method)){
+    //     direction = 4;
+    // }else if (!strcmp("back", method)){
+    //     direction = 2;
     }
     
     
@@ -126,7 +129,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         //ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
 
         esp_mqtt_client_subscribe(client, "v1/devices/me/rpc/request/+", 1);
-        gpio_set_level(2, 1);
+        gpio_set_level(13, 1);
         //ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
         // msg_id = esp_mqtt_client_subscribe(client, "/topic/qos1", 1);
@@ -137,7 +140,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
-        gpio_set_level(2, 0);
+        gpio_set_level(13, 0);
         break;
 
     case MQTT_EVENT_SUBSCRIBED:
@@ -207,50 +210,46 @@ void app_main(void)
     esp_netif_init();
     esp_event_loop_create_default();
     esp_netif_create_default_wifi_sta();
-    printf("1\n");
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    printf("2\n");
 
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = "wifi_cesar",
-            .password = "123456789",
+            .ssid = "INFINITUM05A2_2.4",
+            .password = "26fafzT4NJ",
         },
     };
     
     esp_wifi_set_mode(WIFI_MODE_STA);
-    printf("3\n");
     esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
-    printf("4\n");
     esp_wifi_start();
-    printf("5\n");
     esp_wifi_connect();
-    printf("6\n");
 
     mqtt_app_start();
-    printf("7\n");
     
     esp_task_wdt_init(3600,true);
     uint8_t i = 0;
-    uint16_t j = 0;
+    volatile uint16_t j = 0;
     uint8_t danger = 0;
     uint8_t buzz = 0;
     uint8_t fre = 0;
+    float temp = 0;
+    float press = 0;
+    float hum = 0;
 
     //** SENORES INFRAROJOS **
-    gpio_reset_pin(26);                                  //sensor infrarojo 1
-    gpio_set_direction(26, GPIO_MODE_INPUT);
+    // gpio_reset_pin(26);                                  //sensor infrarojo 1
+    // gpio_set_direction(26, GPIO_MODE_INPUT);
 
-    gpio_reset_pin(25);                                  //sensor infrarojo 2
-    gpio_set_direction(25, GPIO_MODE_INPUT);
+    // gpio_reset_pin(25);                                  //sensor infrarojo 2
+    // gpio_set_direction(25, GPIO_MODE_INPUT);
 
-    gpio_reset_pin(33);                                  //sensor infrarojo 3
-    gpio_set_direction(33, GPIO_MODE_INPUT);
+    // gpio_reset_pin(33);                                  //sensor infrarojo 3
+    // gpio_set_direction(33, GPIO_MODE_INPUT);
 
-    gpio_reset_pin(2);
-    gpio_set_direction(2, GPIO_MODE_OUTPUT);
+    gpio_reset_pin(13);
+    gpio_set_direction(13, GPIO_MODE_OUTPUT);
 
     gpio_reset_pin(5);
     gpio_set_direction(5, GPIO_MODE_OUTPUT);
@@ -258,13 +257,12 @@ void app_main(void)
     gpio_reset_pin(23);
     gpio_set_direction(23, GPIO_MODE_OUTPUT);
 
-    gpio_reset_pin(27);
-    gpio_set_direction(27, GPIO_MODE_OUTPUT);
+    gpio_reset_pin(32);
+    gpio_set_direction(32, GPIO_MODE_OUTPUT);
 
-    initWheels();
+    //initWheels();
     i2c_master_init();
     initMpu6050();
-    set_calib_vars();
 
     /* Resetea el sensor*/
     ESP_ERROR_CHECK(device_register_write_byte(RESET, 0xB6));
@@ -272,42 +270,84 @@ void app_main(void)
     while (1){
         
         //esp_mqtt_client_publish(client, "v1/devices/me/telemetry", "{temperature:30}", 0, 1, 0);
-        // printf("command(soto): %s\n", command);
-        // if(strcmp(command, "false")){
-        //     if (gpio_get_level(26)){
-        //         wheelsGoFoward();
-        //     }else{
-        //         wheelsTurnCounterClockwise();
-        //         i = 4;
-        //     }
-        // }else{
-        //     wheelsStop();
-        //     i = 0;
-        // }
-        if (i == 100){
-            i = 0;
-            ///initBme280();
-            if (!detect_danger_angles()){
-                danger = 0;
-                if(gpio_get_level(33) && gpio_get_level(26) && gpio_get_level(25))
-                    wheelsGoFoward();
-                else{
-                    if(!gpio_get_level(26) && gpio_get_level(25))
-                        wheelsTurnCounterClockwise();
-                    else if (gpio_get_level(26) && !gpio_get_level(25))
-                        wheelsTurnClockwise();
-                    else
-                        wheelsStop();
-                }
-            }else{
-                wheelsStop();
-                danger = 1;
-                    //gpio_set_level(5, buzz);
-                //buzz = !buzz;
-            }
+
+        if (i % 40 == 0 && i > 0 && j == 0){ //Cada 6 segundos
+            initBme280();
+            //printf("i: %d\n", i);
+            set_calib_vars();
+            // if (!detect_danger_angles()){
+            //     danger = 0;
+            //     // if(gpio_get_level(33) && gpio_get_level(26) && gpio_get_level(25))
+            //     //     wheelsGoFoward();
+            //     // else{
+            //     //     if(!gpio_get_level(26) && gpio_get_level(25))
+            //     //         wheelsTurnCounterClockwise();
+            //     //     else if (gpio_get_level(26) && !gpio_get_level(25))
+            //     //         wheelsTurnClockwise();
+            //     //     else
+            //     //         wheelsStop();
+            //     // }
+            // }else{
+            //     //wheelsStop();
+            //     danger = 1;
+            // }
+
+            temp += read_temperature();
+            press += read_pressure();
+            hum += read_humidity();
 
             //printBME280();
             //print_accelerometer();
+        }else if (i == 200 && j == 1){
+            i = 0;
+            temp /= 5;
+            press /= 5;
+            hum /= 5;
+
+            char aux[30] = "";
+            uint8_t len = sprintf(aux, "{temperature1:%0.2f}", temp);
+            esp_mqtt_client_publish(client, "v1/devices/me/telemetry", aux, len, 1, 0);
+            temp = 0;
+
+            len = sprintf(aux, "{humidity1:%.2f}", hum);
+            esp_mqtt_client_publish(client, "v1/devices/me/telemetry", aux, len, 1, 0);
+            hum = 0;
+
+            len = sprintf(aux, "{pressure1:%.2f}", press);
+            esp_mqtt_client_publish(client, "v1/devices/me/telemetry", aux, len, 1, 0);
+            press = 0;
+
+            len = sprintf(aux, "{accelerometer1_x:%.2lf}", read_accel_x());
+            esp_mqtt_client_publish(client, "v1/devices/me/telemetry", aux, len, 1, 0);
+
+            len = sprintf(aux, "{accelerometer1_y:%.2lf}", read_accel_y());
+            esp_mqtt_client_publish(client, "v1/devices/me/telemetry", aux, len, 1, 0);
+        }
+
+        if (i % 6 == 0 && i > 0 && j == 0){ //Cada segundo
+            if (!detect_danger_angles()){
+                danger = 0;
+                // if(gpio_get_level(33) && gpio_get_level(26) && gpio_get_level(25))
+                //     wheelsGoFoward();
+                // else{
+                //     if(!gpio_get_level(26) && gpio_get_level(25))
+                //         wheelsTurnCounterClockwise();
+                //     else if (gpio_get_level(26) && !gpio_get_level(25))
+                //         wheelsTurnClockwise();
+                //     else
+                //         wheelsStop();
+                // }
+            }else{
+                //wheelsStop();
+                
+                danger = 1;
+                char aux[30] = "";
+                uint8_t len = sprintf(aux, "{accelerometer1_x:%.2lf}", read_accel_x());
+                esp_mqtt_client_publish(client, "v1/devices/me/telemetry", aux, len, 1, 0);
+
+                len = sprintf(aux, "{accelerometer1_y:%.2lf}", read_accel_y());
+                esp_mqtt_client_publish(client, "v1/devices/me/telemetry", aux, len, 1, 0);
+            }
         }
         
         if (danger){
@@ -326,13 +366,68 @@ void app_main(void)
             gpio_set_level(5, 0);
         }
 
+
+        // switch (direction){
+        // case 1:
+        //     if(movementTime < direction * 100000){
+        //         wheelsGoFoward();
+        //         movementTime++;
+        //     }
+        //     else{
+        //         movementTime = 0;
+        //         direction = 0;
+        //         wheelsStop();
+        //     }
+            
+        //     break;
+        // case 2:
+        //     if(movementTime < direction * 100000){
+        //         wheelsGoBackward();
+        //         movementTime++;
+        //     }
+        //     else{
+        //         movementTime = 0;
+        //         direction = 0;
+        //         wheelsStop();
+        //     }
+            
+        //     break;
+
+        // case 3:
+        //     if(movementTime < 50000){
+        //         wheelsTurnClockwise();
+        //         movementTime++;
+        //     }
+        //     else{
+        //         movementTime = 0;
+        //         direction = 0;
+        //         wheelsStop();
+        //     }
+            
+        //     break;
+
+        // case 4:
+        //     if(movementTime < 50000){
+        //         wheelsTurnCounterClockwise();
+        //         movementTime++;
+        //     }
+        //     else{
+        //         movementTime = 0;
+        //         direction = 0;
+        //         wheelsStop();
+        //     }
+            
+        //     break;
+        
+        // default:
+        //     break;
+        // }
+
         
         //print_gyroscope();
-        // i++;
-        // printf("gpio_get_level(26): %d\n", gpio_get_level(26));
         delay10Us();
         j++;
-        if(j == 2000){
+        if(j == 15000){
             i++;
             j = 0;
         }
