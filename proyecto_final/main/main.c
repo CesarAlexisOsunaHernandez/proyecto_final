@@ -71,9 +71,7 @@ void commandManager(char cmd[]){
     goal = 0;
     j = 0;
 
-    printf("method: %s\n", method);
-
-    if (!strcmp("setState", method) || !strcmp("car1", method) || !strcmp("lightState", method)){
+    if (!strcmp("lightState", method)){
         while (cmd[i] != '}'){
             if (goal){
                 payload[j] = cmd[i];
@@ -85,14 +83,7 @@ void commandManager(char cmd[]){
             i++;
         }
         payload[j] = '\0';
-        printf("payload: %s\n", payload);
 
-        // if (!strcmp("setState", method)){
-        //     distance =  atoi(payload);
-        //     printf("distance: %d\n", distance);
-        // }else if (!strcmp("car1", method)){
-
-        // }else 
         if (!strcmp("lightState", method)){
             if (!strcmp("false", payload)){
                 gpio_set_level(23, 0);
@@ -102,41 +93,21 @@ void commandManager(char cmd[]){
                 gpio_set_level(32, 1);
             }
         }
-        
-    // }else if (!strcmp("foward", method)){
-    //     direction = 1;
-    // }else if (!strcmp("left", method)){
-    //     direction = 3;
-    // }else if (!strcmp("right", method)){
-    //     direction = 4;
-    // }else if (!strcmp("back", method)){
-    //     direction = 2;
     }
-    
-    
 }
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
-    //esp_mqtt_client_handle_t client_han = event->client;
-    //int msg_id;
+
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        //msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1, 0);
-        //ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
 
         esp_mqtt_client_subscribe(client, "v1/devices/me/rpc/request/+", 1);
         gpio_set_level(13, 1);
-        //ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
-        // msg_id = esp_mqtt_client_subscribe(client, "/topic/qos1", 1);
-        // ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
-
-        // msg_id = esp_mqtt_client_unsubscribe(client, "/topic/qos1");
-        // ESP_LOGI(TAG, "sent unsubscribe successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
@@ -145,8 +116,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-        //msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
-        //ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_UNSUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
@@ -159,49 +128,28 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
         printf("DATA=%.*s\r\n", event->data_len, event->data);
         commandManager(event->data);
-        //strncpy(command, event->data, event->data_len);
-        //printf("command(naka): %s\n", command);
-        // command[0] = event->data[30];
-        // command[1] = event->data[31];
-        // command[2] = event->data[32];
-        // command[3] = event->data[33];
-        // command[4] = event->data[34];
-        // printf("command(naka): %s\n", command);
         break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
         gpio_set_level(2, 0);
-        // if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
-        //     log_error_if_nonzero("reported from esp-tls", event->error_handle->esp_tls_last_esp_err);
-        //     log_error_if_nonzero("reported from tls stack", event->error_handle->esp_tls_stack_err);
-        //     log_error_if_nonzero("captured as transport's socket errno",  event->error_handle->esp_transport_sock_errno);
-        //     ESP_LOGI(TAG, "Last errno string (%s)", strerror(event->error_handle->esp_transport_sock_errno));
-
-        // }
         break;
     default:
         ESP_LOGI(TAG, "Other event id:%d", event->event_id);
-        //msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1, 0);
         break;
     }
 }
 
 static void mqtt_app_start(void)
 {
-    //printf("1\n");
     esp_mqtt_client_config_t mqtt_cfg = {
         .uri = "mqtt://mqtt.thingsboard.cloud",
         .username = "67ZcjHjBKMOrtW6dajjU",
         .port = 1883,
     };
-    //printf("2\n");
     client = esp_mqtt_client_init(&mqtt_cfg);
-    //printf("3\n");
     /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-    //printf("4\n");
     esp_mqtt_client_start(client);
-    //printf("5\n");
 }
 
 void app_main(void)
@@ -238,16 +186,6 @@ void app_main(void)
     float press = 0;
     float hum = 0;
 
-    //** SENORES INFRAROJOS **
-    // gpio_reset_pin(26);                                  //sensor infrarojo 1
-    // gpio_set_direction(26, GPIO_MODE_INPUT);
-
-    // gpio_reset_pin(25);                                  //sensor infrarojo 2
-    // gpio_set_direction(25, GPIO_MODE_INPUT);
-
-    // gpio_reset_pin(33);                                  //sensor infrarojo 3
-    // gpio_set_direction(33, GPIO_MODE_INPUT);
-
     gpio_reset_pin(13);
     gpio_set_direction(13, GPIO_MODE_OUTPUT);
 
@@ -260,7 +198,6 @@ void app_main(void)
     gpio_reset_pin(32);
     gpio_set_direction(32, GPIO_MODE_OUTPUT);
 
-    //initWheels();
     i2c_master_init();
     initMpu6050();
 
@@ -268,36 +205,13 @@ void app_main(void)
     ESP_ERROR_CHECK(device_register_write_byte(RESET, 0xB6));
 
     while (1){
-        
-        //esp_mqtt_client_publish(client, "v1/devices/me/telemetry", "{temperature:30}", 0, 1, 0);
-
         if (i % 40 == 0 && i > 0 && j == 0){ //Cada 6 segundos
             initBme280();
-            //printf("i: %d\n", i);
             set_calib_vars();
-            // if (!detect_danger_angles()){
-            //     danger = 0;
-            //     // if(gpio_get_level(33) && gpio_get_level(26) && gpio_get_level(25))
-            //     //     wheelsGoFoward();
-            //     // else{
-            //     //     if(!gpio_get_level(26) && gpio_get_level(25))
-            //     //         wheelsTurnCounterClockwise();
-            //     //     else if (gpio_get_level(26) && !gpio_get_level(25))
-            //     //         wheelsTurnClockwise();
-            //     //     else
-            //     //         wheelsStop();
-            //     // }
-            // }else{
-            //     //wheelsStop();
-            //     danger = 1;
-            // }
 
             temp += read_temperature();
             press += read_pressure();
             hum += read_humidity();
-
-            //printBME280();
-            //print_accelerometer();
         }else if (i == 200 && j == 1){
             i = 0;
             temp /= 5;
@@ -327,19 +241,7 @@ void app_main(void)
         if (i % 6 == 0 && i > 0 && j == 0){ //Cada segundo
             if (!detect_danger_angles()){
                 danger = 0;
-                // if(gpio_get_level(33) && gpio_get_level(26) && gpio_get_level(25))
-                //     wheelsGoFoward();
-                // else{
-                //     if(!gpio_get_level(26) && gpio_get_level(25))
-                //         wheelsTurnCounterClockwise();
-                //     else if (gpio_get_level(26) && !gpio_get_level(25))
-                //         wheelsTurnClockwise();
-                //     else
-                //         wheelsStop();
-                // }
             }else{
-                //wheelsStop();
-                
                 danger = 1;
                 char aux[30] = "";
                 uint8_t len = sprintf(aux, "{accelerometer1_x:%.2lf}", read_accel_x());
@@ -366,72 +268,11 @@ void app_main(void)
             gpio_set_level(5, 0);
         }
 
-
-        // switch (direction){
-        // case 1:
-        //     if(movementTime < direction * 100000){
-        //         wheelsGoFoward();
-        //         movementTime++;
-        //     }
-        //     else{
-        //         movementTime = 0;
-        //         direction = 0;
-        //         wheelsStop();
-        //     }
-            
-        //     break;
-        // case 2:
-        //     if(movementTime < direction * 100000){
-        //         wheelsGoBackward();
-        //         movementTime++;
-        //     }
-        //     else{
-        //         movementTime = 0;
-        //         direction = 0;
-        //         wheelsStop();
-        //     }
-            
-        //     break;
-
-        // case 3:
-        //     if(movementTime < 50000){
-        //         wheelsTurnClockwise();
-        //         movementTime++;
-        //     }
-        //     else{
-        //         movementTime = 0;
-        //         direction = 0;
-        //         wheelsStop();
-        //     }
-            
-        //     break;
-
-        // case 4:
-        //     if(movementTime < 50000){
-        //         wheelsTurnCounterClockwise();
-        //         movementTime++;
-        //     }
-        //     else{
-        //         movementTime = 0;
-        //         direction = 0;
-        //         wheelsStop();
-        //     }
-            
-        //     break;
-        
-        // default:
-        //     break;
-        // }
-
-        
-        //print_gyroscope();
         delay10Us();
         j++;
         if(j == 15000){
             i++;
             j = 0;
-        }
-        //vTaskDelay(2000 / portTICK_PERIOD_MS);                                                                                                                                                                                                              
+        }                                                                                                                                                                                                             
     }
-    
 }
