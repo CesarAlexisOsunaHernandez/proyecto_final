@@ -1,135 +1,12 @@
+#include <stdio.h>
+#include "esp_log.h"
+#include "driver/i2c.h"
 #include "bme280.h"
+#include "string.h"
 
-static const char *BME = "BME280";
-
-/**
- * @brief Read a sequence of bytes from a MPU6050 sensor registers
- */
-esp_err_t device_register_read(uint8_t reg_addr, uint8_t *data)
+esp_err_t device_register_read(uint8_t reg_addr, uint8_t *data, size_t len)
 {
-    return i2c_master_write_read_device(0, BME280_ADDR, &reg_addr, 1, data, 1, 1000 / portTICK_RATE_MS);
-}
-
-/**
- * @brief Write a byte to a MPU6050 sensor register
- */
-esp_err_t device_register_write_byte(uint8_t reg_addr, uint8_t data)
-{
-    //int ret;
-    uint8_t write_buf[2] = {reg_addr, data};
-
-    // ret = i2c_master_write_to_device(0, MPU6050_ADDR, write_buf, sizeof(write_buf), 1000 / portTICK_RATE_MS);
-
-    // return ret;
-
-    return i2c_master_write_to_device(0, BME280_ADDR, write_buf, sizeof(write_buf), 1000 / portTICK_RATE_MS);
-}
-
-void initBme280(){
-    /*Configura para la medicion de la humedad con oversampling x 16*/
-    ESP_ERROR_CHECK(device_register_write_byte(CTRL_HUM, 0x05));
-    ESP_LOGI(BME, "Humidity initialized successfully");
-    /*Configura para la medicion de la presion y temperatura con oversampling x 16, aparte activa el modo forzado*/
-    ESP_ERROR_CHECK(device_register_write_byte(CTRL_MEAS, 0xB5));
-    ESP_LOGI(BME, "Pressure and temperature initialized successfully");
-    /*Configura el filtro con un coeficiente de 16*/
-    ESP_ERROR_CHECK(device_register_write_byte(CONFIG, 0x10));
-    ESP_LOGI(BME, "Filter initialized successfully");
-    ESP_LOGI(BME, "BME280 initialized successfully");
-}
-
-/*
-Funcion para configurar variables para el calculo de temperatura, presion y humedad
-*/
-void set_calib_vars(){
-    uint8_t data[2];
-
-    //Variables para la temperatura
-    ESP_ERROR_CHECK(device_register_read(0x89, data));
-    dig_T1 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x88, data));
-    dig_T1 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0x8B, data));
-    dig_T2 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x8A, data));
-    dig_T2 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0x8D, data));
-    dig_T3 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x8C, data));
-    dig_T3 += data[0];
-
-    //Variables para la presion
-    ESP_ERROR_CHECK(device_register_read(0x8E, data));
-    dig_P1 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x8F, data));
-    dig_P1 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0x91, data));
-    dig_P2 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x90, data));
-    dig_P2 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0x93, data));
-    dig_P3 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x92, data));
-    dig_P3 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0x95, data));
-    dig_P4 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x94, data));
-    dig_P4 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0x97, data));
-    dig_P5 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x96, data));
-    dig_P5 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0x99, data));
-    dig_P6 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x98, data));
-    dig_P6 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0x9B, data));
-    dig_P7 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x9A, data));
-    dig_P7 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0x9D, data));
-    dig_P8 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x9C, data));
-    dig_P8 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0x9E, data));
-    dig_P9 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0x9F, data));
-    dig_P9 += data[0];
-
-	//Variables para la humedad
-    ESP_ERROR_CHECK(device_register_read(0xA1, data));
-    dig_H1 = data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0xE2, data));
-    dig_H2 = data[0]<<8;
-    ESP_ERROR_CHECK(device_register_read(0xE1, data));
-    dig_H2 += data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0xE3, data));
-    dig_H3 = data[0];
-
-    ESP_ERROR_CHECK(device_register_read(0xE4, data));
-    dig_H4 = data[0]<<4;
-    ESP_ERROR_CHECK(device_register_read(0xE5, data));
-    dig_H4 += data[0] & 0x0F;
-
-    ESP_ERROR_CHECK(device_register_read(0xE6, data));
-    dig_H5 = data[0]<<4;
-    ESP_ERROR_CHECK(device_register_read(0xE5, data));
-    dig_H5 += data[0] & 0xF0;
-
-    ESP_ERROR_CHECK(device_register_read(0xE7, data));
-    dig_H6 = data[0];
+    return i2c_master_write_read_device(I2C_MASTER_NUM, SENSOR_ADDR, &reg_addr, 1, data, len, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
 }
 
 /*!
@@ -137,27 +14,23 @@ void set_calib_vars(){
  * return the compensated temperature data in double data type.
  */
 double get_temp_value(int32_t raw){
-    double var1;
-    double var2;
+    double TempCacl[2];
     double temperature;
     double temperature_min = -40;
     double temperature_max = 85;
 
-    var1 = (((double)raw) / 16384.0 - ((double)dig_T1) / 1024.0);
-    var1 = var1 * ((double)dig_T2);
-    var2 = (((double)raw) / 131072.0 - ((double)dig_T1) / 8192.0);
-    var2 = (var2 * var2) * ((double)dig_T3);
-    t_fine = (int32_t)(var1 + var2);
-    temperature = (var1 + var2) / 5120.0;
+    TempCacl[0] = (((double)raw) / 16384.0 - ((double)dig_T1) / 1024.0);
+    TempCacl[0] = TempCacl[0] * ((double)dig_T2);
+    TempCacl[1] = (((double)raw) / 131072.0 - ((double)dig_T1) / 8192.0);
+    TempCacl[1] = (TempCacl[1] * TempCacl[1]) * ((double)dig_T3);
+    t_fine = (int32_t)(TempCacl[0] + TempCacl[1]);
+    temperature = (TempCacl[0] + TempCacl[1]) / 5120.0;
 
     if (temperature < temperature_min)
-    {
         temperature = temperature_min;
-    }
+    
     else if (temperature > temperature_max)
-    {
         temperature = temperature_max;
-    }
 
     return temperature;
 }
@@ -179,79 +52,99 @@ double get_press_value(int32_t adc_P)
     p = ((p + var1 + var2) >> 8) + (((int64_t)dig_P7)<<4); return ((double)p) / 25600;
 }
 
+
 double get_hum_value(int32_t adc_H)
 {
 	double humidity;
-    double humidity_min = 0.0;
-    double humidity_max = 100.0;
-    double var1;
-    double var2;
-    double var3;
-    double var4;
-    double var5;
-    double var6;
+    double H_min = 0.0;
+    double H_max = 100.0;
+    double Calc[6] = {0};
+    
 
-    var1 = ((double)t_fine) - 76800.0;
-    var2 = (((double)dig_H4) * 64.0 + (((double)dig_H5) / 16384.0) * var1);
-    var3 = adc_H - var2;
-    var4 = ((double)dig_H2) / 65536.0;
-    var5 = (1.0 + (((double)dig_H3) / 67108864.0) * var1);
-    var6 = 1.0 + (((double)dig_H6) / 67108864.0) * var1 * var5;
-    var6 = var3 * var4 * (var5 * var6);
-    humidity = var6 * (1.0 - ((double)dig_H1) * var6 / 524288.0);
+    Calc[0] = ((double)t_fine) - 76800.0;
+    Calc[1] = (((double)dig_H4) * 64.0 + (((double)dig_H5) / 16384.0) * Calc[0]);
+    Calc[2] = adc_H - Calc[1];
+    Calc[3] = ((double)dig_H2) / 65536.0;
+    Calc[4] = (1.0 + (((double)dig_H3) / 67108864.0) * Calc[0]);
+    Calc[5] = 1.0 + (((double)dig_H6) / 67108864.0) * Calc[0] * Calc[4];
+    Calc[5] = Calc[2] * Calc[3] * (Calc[4] * Calc[5]);
+    humidity = Calc[5] * (1.0 - ((double)dig_H1) * Calc[5] / 524288.0);
 
-    if (humidity > humidity_max)
-    {
-        humidity = humidity_max;
-    }
-    else if (humidity < humidity_min)
-    {
-        humidity = humidity_min;
-    }
+    if (humidity > H_max)
+        humidity = H_max;
+    
+    else if (humidity < H_min)
+        humidity = H_min;
 
     return humidity;
 }
 
-double read_humidity(){
-    uint32_t hum;
+
+// Función para leer un registro de 16 bits desde el sensor
+esp_err_t read_sensor_register(uint8_t reg_addr, uint16_t* reg_value) {
     uint8_t data[2];
+    esp_err_t ret;
 
-    device_register_read(HUM_MSB, data);
-    hum = data[0] << 8;
-    device_register_read(HUM_LSB, data);
-    hum += data[0];
+    // Leer el registro LSB
+    ret = device_register_read(reg_addr, data, 1);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    *reg_value = data[0];
 
-    return get_hum_value(hum);
+    // Leer el registro MSB
+    ret = device_register_read(reg_addr + 1, data, 1);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    *reg_value |= (data[0] << 8);
+
+    return ESP_OK;
 }
 
-double read_temperature(){
-    uint32_t tem;
+
+//Funcion para configurar variables para el calculo de temperatura, presion y humedad
+void set_calib_vars(){
     uint8_t data[2];
 
-    device_register_read(TEMP_MSB, data);
-    tem = data[0]<<12;
-    device_register_read(TEMP_LSB, data);
-    tem += data[0]<<4;
-    device_register_read(TEMP_XLSB, data);
-    tem += data[0]>>4;
+    //Temperatura
+    read_sensor_register(0x89, &dig_T1);
+    read_sensor_register(0x8B, &dig_T2);
+    read_sensor_register(0x8D, &dig_T3);
 
-    return get_temp_value(tem);
-}
+    //Presion
+    read_sensor_register(0x8E,&dig_P1);
+    read_sensor_register(0x91,&dig_P2);
+    read_sensor_register(0x93,&dig_P3);
+    read_sensor_register(0x95,&dig_P4);
+    read_sensor_register(0x97,&dig_P5);
+    read_sensor_register(0x99,&dig_P6);
+    read_sensor_register(0x9B,&dig_P7);
+    read_sensor_register(0x9D,&dig_P8);
+    read_sensor_register(0x9E,&dig_P9);
 
-double read_pressure(){
-    uint32_t pres;
-    uint8_t data[2];
+	//Humedad
+    ESP_ERROR_CHECK(device_register_read(0xA1, data, 1));
+    dig_H1 = data[0];
 
-    device_register_read(PRESS_MSB, data);
-    pres = data[0]<<12;
-    device_register_read(PRESS_LSB, data);
-    pres += data[0]<<4;
-    device_register_read(PRESS_XLSB, data);
-    pres += data[0]>>4;
+    ESP_ERROR_CHECK(device_register_read(0xE2, data, 1));
+    dig_H2 = data[0]<<8;
+    ESP_ERROR_CHECK(device_register_read(0xE1, data, 1));
+    dig_H2 += data[0];
 
-    return get_press_value(pres);
-}
+    ESP_ERROR_CHECK(device_register_read(0xE3, data, 1));
+    dig_H3 = data[0];
 
-void printBME280(){
-    printf("\nHumidity: %0.2lf Temperature: %0.2lf Pressure: %0.2lf\n", read_humidity(), read_temperature(), read_pressure());
+    ESP_ERROR_CHECK(device_register_read(0xE4, data, 1));
+    dig_H4 = data[0]<<4;
+    ESP_ERROR_CHECK(device_register_read(0xE5, data, 1));
+    dig_H4 += data[0] & 0x0F;
+
+    ESP_ERROR_CHECK(device_register_read(0xE6, data, 1));
+    dig_H5 = data[0]<<4;
+    ESP_ERROR_CHECK(device_register_read(0xE5, data, 1));
+    dig_H5 += data[0] & 0xF0;
+
+    ESP_ERROR_CHECK(device_register_read(0xE7, data, 1));
+    dig_H6 = data[0];
 }

@@ -5,8 +5,17 @@
 #include "esp_log.h"
 #include "driver/i2c.h"
 
-#define BME280_ADDR 0x76
-#define BME280_WHO_AM_I_REG_ADDR 0xD0
+#define I2C_MASTER_SCL_IO           22      /*!< GPIO number used for I2C master clock */
+#define I2C_MASTER_SDA_IO           21      /*!< GPIO number used for I2C master data  */
+#define I2C_MASTER_NUM              0                          /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
+#define I2C_MASTER_FREQ_HZ          400000                     /*!< I2C master clock frequency */
+#define I2C_MASTER_TX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_RX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_TIMEOUT_MS       1000
+
+
+#define SENSOR_ADDR 0x76
+#define WHO_AM_I_REG_ADDR 0xD0
 
 #define RESET 0xE0
 
@@ -25,39 +34,22 @@
 #define PRESS_LSB 0xF8
 #define PRESS_MSB 0xF7
 
-unsigned short dig_T1;
-signed short dig_T2;
-signed short dig_T3;
+unsigned short dig_T1, dig_T2, dig_T3;
 
-unsigned short dig_P1;
-signed short dig_P2;
-signed short dig_P3;
-signed short dig_P4;
-signed short dig_P5;
-signed short dig_P6;
-signed short dig_P7;
-signed short dig_P8;
-signed short dig_P9;
+unsigned short dig_P1, dig_P2, dig_P3, dig_P4, dig_P5, dig_P6, dig_P7, dig_P8, dig_P9;
 
 unsigned char dig_H1;
 signed short dig_H2;
 unsigned char dig_H3;
-signed short dig_H4;
-signed short dig_H5;
-signed char dig_H6;
+signed short dig_H4, dig_H5, dig_H6;
 
 int32_t t_fine;
 
-esp_err_t device_register_read(uint8_t reg_addr, uint8_t *data);
-esp_err_t device_register_write_byte(uint8_t reg_addr, uint8_t data);
-void initBme280();
-void set_calib_vars();
+esp_err_t device_register_read(uint8_t reg_addr, uint8_t *data, size_t len);
 double get_temp_value(int32_t raw);
 double get_press_value(int32_t adc_P);
 double get_hum_value(int32_t adc_H);
-double read_humidity();
-double read_temperature();
-double read_pressure();
-void printBME280();
+esp_err_t read_sensor_register(uint8_t reg_addr, uint16_t* reg_value);
+void set_calib_vars();
 
 #endif
